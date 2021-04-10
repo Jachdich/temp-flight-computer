@@ -3,7 +3,7 @@
 #include "RF24.h"
 #include "PWMServo.h"
 #include "Adafruit_BNO055.h"
-//#include "Adafruit_ADS1X15.h"
+#include "Adafruit_ADS1X15.h"
 #include "float3.h"
 
 typedef struct {
@@ -27,20 +27,20 @@ typedef struct {
     uint16_t differentialPressure;
 } UnpackedTelemetryPacket;
 
-//RF24 radio(9, 10);
+RF24 radio(9, 10);
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
-//Adafruit_ADS1115 ads;
+Adafruit_ADS1115 ads;
 uint8_t droppedRx = 0;
-//PWMServo elevator;
-//PWMServo rudder;
-//PWMServo aileron;
-//PWMServo throttle;
+PWMServo elevator;
+PWMServo rudder;
+PWMServo aileron;
+PWMServo throttle;
 
 void setControls(ControlPacket pack) {
-//    elevator.write(pack.elevator);
-//    rudder.write(pack.rudder);
-//    aileron.write(pack.aileron);
-//    throttle.write(pack.throttle);
+    elevator.write(pack.elevator);
+    rudder.write(pack.rudder);
+    aileron.write(pack.aileron);
+    throttle.write(pack.throttle);
 }
 
 void panic() {
@@ -61,7 +61,6 @@ UnpackedTelemetryPacket getTelemetry() {
     bno.getEvent(&linAccel, Adafruit_BNO055::VECTOR_LINEARACCEL);
     bno.getEvent(&grav, Adafruit_BNO055::VECTOR_GRAVITY);
     uint8_t temp = bno.getTemp();
-
     
     return {
         toFloat3(orient.orientation),
@@ -71,8 +70,8 @@ UnpackedTelemetryPacket getTelemetry() {
         temp,
         (uint16_t)analogRead(A1),
         (uint16_t)analogRead(A2),
-        0,//(uint16_t)ads.readADC_Differential_2_3(),
-        0,//(uint16_t)ads.readADC_Differential_0_1(),
+        (uint16_t)ads.readADC_Differential_2_3(),
+        (uint16_t)ads.readADC_Differential_0_1(),
         (uint16_t)analogRead(A8),
         (uint16_t)analogRead(A9),
     };
@@ -89,10 +88,8 @@ extern "C" int main(void) {
         Serial.println("BNO055 initialised");
     }
 
-    /*
     if (!radio.begin()) {
         Serial.println("Radio failed to initialise");
-        while (1);
         //what
         return 1;
         //lol this doesnt make sense
@@ -100,54 +97,19 @@ extern "C" int main(void) {
         //lmfao get trolololed 
     } else {
         Serial.println("Radio initialised\n");
-    }*/
+    }
 
-    //ads.setGain(GAIN_SIXTEEN);
-    //ads.begin();
+    ads.setGain(GAIN_SIXTEEN);
+    ads.begin();
     
-    //radio.setPayloadSize(1);
+    radio.setPayloadSize(32);
 
-    //radio.openWritingPipe((const unsigned char*)"B0001");
-    //radio.openReadingPipe(1, (const unsigned char*)"A0001");
-    //radio.setPALevel(RF24_PA_MAX); //TODO MAX in real code lel
-    //radio.setDataRate(RF24_250KBPS);
+    radio.openWritingPipe((const unsigned char*)"B0001");
+    radio.openReadingPipe(1, (const unsigned char*)"A0001");
+    radio.setPALevel(RF24_PA_MAX); //TODO MAX in real code lel
+    radio.setDataRate(RF24_250KBPS);
 
     while (1) {
-
-    float3 orient;
-    float3 angVel;
-    float3 linAccel;
-    float3 grav;
-    uint8_t temp;
-    uint16_t rail_5v0;
-    uint16_t rail_8v4;
-    uint16_t current_motor;
-    uint16_t current_5v0;
-    uint16_t staticPressure;
-    uint16_t differentialPressure;
-    /*
-        if (Serial.available()) {
-            radio.stopListening();
-            char buf[2] = " ";
-            buf[0] = Serial.read();
-            radio.write(buf, 1);
-            radio.startListening();
-            Serial.print(buf);
-        }
-        if (radio.available()) {
-            char recv[2] = " ";
-            radio.read(recv, 1);
-            Serial.print(recv);
-        }*/
-        UnpackedTelemetryPacket pack = getTelemetry();
-
-        Serial.print(pack.linAccel.x);
-        Serial.print(" ");
-        Serial.print(pack.linAccel.y);
-        Serial.print(" ");
-        Serial.println(pack.linAccel.z);
-        delay(10);
-        /*
         UnpackedTelemetryPacket pack = getTelemetry();
 
         uint8_t* packet_bytes = (uint8_t*)&pack;
@@ -176,6 +138,6 @@ extern "C" int main(void) {
             uint8_t* recvBuffer = (uint8_t*)&packet;
             radio.read(recvBuffer, sizeof(ControlPacket));
             setControls(packet);
-        }*/
+        }
     }
 }
